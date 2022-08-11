@@ -11,6 +11,31 @@ private
     ℓ : Level
     A : Type ℓ
 
+
+-- To correct the boundary
+
+notRefl-filler : {a b c : A} (p : a ≡ b) (q : b ≡ c) → (i j k : I) → A
+notRefl-filler p q t i j =
+  fill (λ j → compPath-filler p q j i ≡ compPath-filler p q j i)
+  (λ j → λ { (i = i0) → refl ; (i = i1) → refl })
+  (inS refl) j t
+
+notRefl : {a b c : A} (p : a ≡ b) (q : b ≡ c) → p ∙ q ≡ p ∙ q
+notRefl p q i j = notRefl-filler p q i j i1
+
+-- Two cubes only differ at the caps, so it's easy to make a path.
+refl≡notRefl : {a b c : A} (p : a ≡ b) (q : b ≡ c) → refl ≡ notRefl p q
+refl≡notRefl {a = a} p q i j k =
+  hcomp (λ l → λ
+    { (i = i0) → compPath-filler p q l k
+    ; (i = i1) → notRefl-filler p q j k l
+    ; (j = i0) → compPath-filler p q l k
+    ; (j = i1) → compPath-filler p q l k
+    ; (k = i0) → a
+    ; (k = i1) → q l })
+  (p k)
+
+
 -- 🍩
 data T² : Type where
   base : T²
@@ -52,6 +77,13 @@ T²≃Torus = isoToEquiv (iso to from to-from from-to)
     from-to base = refl
     from-to (p i) = refl
     from-to (q i) = refl
-    from-to (surf i j) = {! hcomp-inv (λ k → sides p q (~ i) j (~ k)) (inS (surf i j)) !}
-      -- (i ∨ ~ i) ∨ ~ i₁ ∨ i₁ != i ∨ ~ i of type I
-      -- when checking the definition of from-to
+    from-to (surf i j) k =
+      -- correct two faces while keep others invariant
+      hcomp (λ l → λ
+        { (i = i0) → refl≡notRefl p q l k j
+        ; (i = i1) → refl≡notRefl q p l k j
+        ; (j = i0) → base
+        ; (j = i1) → base
+        ; (k = i0) → from (to (surf i j))
+        ; (k = i1) → surf i j })
+      (hcomp-inv (λ k → sides p q (~ i) j (~ k)) (inS (surf i j)) k)
